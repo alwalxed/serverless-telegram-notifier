@@ -46,9 +46,9 @@ openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32
 
 ```bash
 pnpm install
-pnpx wrangler secret put TELEGRAM_BOT_TOKEN
-pnpx wrangler secret put TELEGRAM_CHAT_ID
-pnpx wrangler secret put AUTH_KEY
+npx wrangler secret put TELEGRAM_BOT_TOKEN
+npx wrangler secret put TELEGRAM_CHAT_ID
+npx wrangler secret put AUTH_KEY
 pnpm run deploy
 ```
 
