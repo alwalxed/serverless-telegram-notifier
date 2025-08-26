@@ -19,7 +19,7 @@ export const pingSchema = z.object({
 
 // POST: /send JSON
 export const notificationJSONSchema = z.object({
-  message: z.string().min(1, "Message cannot be empty").max(50000, "Message too long"),
+  message: z.string().min(1, "Message cannot be empty").max(50000000, "Message too long"),
 });
 
 // POST: /send HEADER;

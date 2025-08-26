@@ -90,7 +90,7 @@ curl -X POST http://localhost:8787/send \
 
 **Request Body:**
 
-- `message` (string): Your notification message (1-50,000 characters)
+- `message` (string): Your notification message (1-50,000,000 characters)
 
 ## Development
 
