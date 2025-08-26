@@ -1,6 +1,7 @@
 {
   "name": "telegram-notifier",
   "type": "module",
+  "version": "1.0.0",
   "description": "Minimal Hono-based Cloudflare Workers service for forwarding HTTP requests to Telegram",
   "scripts": {
     "dev": "wrangler dev",

@@ -2,7 +2,7 @@
 
 Minimal Hono-based Cloudflare Workers service for forwarding HTTP requests to Telegram. Provides two routes:
 
-- **GET `/`** - Sends request information to Telegram
+- **GET `/ping`** - Sends request information to Telegram
 - **POST `/send`** - Sends custom notifications with authentication
 
 ## Features
@@ -42,13 +42,21 @@ openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32
 # Example output: yKDVvSgUd2qLVcfGwTaqduFmrFScA5jT
 ```
 
-### 4. Deploy
+### 4. Generate Bot Bypass Key
+
+```bash
+openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 8
+# Example output: 78GCCRT5
+```
+
+### 5. Deploy
 
 ```bash
 pnpm install
 npx wrangler secret put TELEGRAM_BOT_TOKEN
 npx wrangler secret put TELEGRAM_CHAT_ID
 npx wrangler secret put AUTH_KEY
+npx wrangler secret put BOT_BYPASS_KEY
 pnpm run deploy
 ```
 
@@ -56,10 +64,10 @@ pnpm run deploy
 
 ### Monitor Requests (GET)
 
-Any GET request to the root endpoint will send request details to Telegram:
+Any GET request to the `/ping` endpoint will send request details to Telegram:
 
 ```bash
-curl http://localhost:8787/
+curl http://localhost:8787/ping?key=78GCCRT5
 ```
 
 This sends information including:
@@ -76,13 +84,13 @@ Send authenticated custom messages:
 ```bash
 curl -X POST http://localhost:8787/send \
   -H "Content-Type: application/json" \
-  -d '{"message": "Server deployed successfully!", "authKey": "yKDVvSgUd2qLVcfGwTaqduFmrFScA5jT"}'
+  -H "Authorization: Bearer ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789" \
+  -d '{"message": "Server deployed successfully!"}'
 ```
 
 **Request Body:**
 
 - `message` (string): Your notification message (1-50,000 characters)
-- `authKey` (string): Your authentication key (25-44 characters)
 
 ## Development
 
@@ -91,6 +99,7 @@ curl -X POST http://localhost:8787/send \
 # TELEGRAM_BOT_TOKEN=<YOUR_BOT_TOKEN>
 # TELEGRAM_CHAT_ID=<YOUR_CHAT_ID>
 # AUTH_KEY=<YOUR_AUTH_KEY>
+# BOT_BYPASS_KEY=<YOUR_BOT_BYPASS_KEY>
 
 pnpm run dev
 ```

@@ -1,4 +1,7 @@
-// Types
+// ------------------------------------------------------------>
+// -------------------------------------------------------------->
+// ---------------------------------------------------------------->
+
 type TelegramApiResponse = {
   ok: boolean;
   result?: unknown;
@@ -16,17 +19,24 @@ type TelegramSendResult = {
   sentParts?: number;
 };
 
-// Constants
+// ------------------------------------------------------------>
+// -------------------------------------------------------------->
+// ---------------------------------------------------------------->
+
 const TELEGRAM_MESSAGE_MAX_LENGTH = 4096;
-const MESSAGE_CHUNK_PADDING = 100; // Safety buffer for part headers
+const MESSAGE_SAFETY_BUFFER = 200; // Safety buffer for headers, Markdown, etc.
 const RATE_LIMIT_DELAY_MS = 1000; // 1 second delay between chunks
+
+// ------------------------------------------------------------>
+// -------------------------------------------------------------->
+// ---------------------------------------------------------------->
 
 /**
  * Sends a single message to Telegram using the Bot API
  */
 export async function sendTelegramMessage(
   messageText: string,
-  credentials: TelegramCredentials
+  credentials: TelegramCredentials,
 ): Promise<TelegramSendResult> {
   const { TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID } = credentials;
 
@@ -38,13 +48,12 @@ export async function sendTelegramMessage(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: TELEGRAM_CHAT_ID,
-        text: messageText,
+        text: `\`\`\`\n${ messageText }\n\`\`\``,
+        parse_mode: "MarkdownV2",
       }),
     });
 
-    const apiResponse = (await response.json().catch(() => null)) as
-      | TelegramApiResponse
-      | null;
+    const apiResponse = (await response.json().catch(() => null)) as TelegramApiResponse | null;
 
     if (!response.ok || !apiResponse?.ok) {
       const errorMessage = apiResponse?.description
@@ -56,21 +65,68 @@ export async function sendTelegramMessage(
 
     return { success: true };
   } catch (error) {
-    const errorMessage = error instanceof Error
-      ? error.message
-      : "Unknown error occurred while sending to Telegram";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred while sending to Telegram";
 
     return { success: false, error: errorMessage };
   }
 }
 
+// ------------------------------------------------------------>
+// -------------------------------------------------------------->
+// ---------------------------------------------------------------->
+
+/**
+ * Splits a message into chunks at word boundaries when possible
+ * Falls back to character splitting if individual words exceed chunk size
+ */
+function splitMessageIntoChunks(message: string, maxChunkSize: number): string[] {
+  const chunks: string[] = [];
+  let currentChunk = "";
+
+  // Split by words (spaces and newlines)
+  const words = message.split(/(\s+)/);
+
+  for (const word of words) {
+    // If adding this word would exceed the limit
+    if (currentChunk.length + word.length > maxChunkSize) {
+      // If we have content in current chunk, save it
+      if (currentChunk.trim()) {
+        chunks.push(currentChunk.trim());
+        currentChunk = "";
+      }
+
+      // If the word itself is longer than max chunk size, split it by characters
+      if (word.length > maxChunkSize) {
+        for (let i = 0; i < word.length; i += maxChunkSize) {
+          chunks.push(word.slice(i, i + maxChunkSize));
+        }
+      } else {
+        currentChunk = word;
+      }
+    } else {
+      currentChunk += word;
+    }
+  }
+
+  // Add any remaining content
+  if (currentChunk.trim()) {
+    chunks.push(currentChunk.trim());
+  }
+
+  return chunks;
+}
+
+// ------------------------------------------------------------>
+// -------------------------------------------------------------->
+// ---------------------------------------------------------------->
 /**
  * Splits long messages into chunks and sends them sequentially to Telegram
  * Handles messages longer than Telegram's 4096 character limit
+ * Enhanced to split on word boundaries when possible
  */
 export async function sendLongMessageToTelegram(
   message: string,
-  credentials: TelegramCredentials
+  credentials: TelegramCredentials,
 ): Promise<TelegramSendResult> {
   const trimmedMessage = message.trim();
 
@@ -78,25 +134,28 @@ export async function sendLongMessageToTelegram(
     return { success: false, error: "Message cannot be empty" };
   }
 
-  // Send directly if message fits within Telegram's limit
-  if (trimmedMessage.length <= TELEGRAM_MESSAGE_MAX_LENGTH) {
+  // Send directly if message fits within safe limit
+  if (trimmedMessage.length <= TELEGRAM_MESSAGE_MAX_LENGTH - MESSAGE_SAFETY_BUFFER) {
     return sendTelegramMessage(trimmedMessage, credentials);
   }
 
-  // Calculate chunk size accounting for part headers like "Part 1/3:\n\n"
-  const chunkSize = TELEGRAM_MESSAGE_MAX_LENGTH - MESSAGE_CHUNK_PADDING;
-  const messageChunks: string[] = [];
+  const chunkSize = TELEGRAM_MESSAGE_MAX_LENGTH - MESSAGE_SAFETY_BUFFER;
+  const messageChunks = splitMessageIntoChunks(trimmedMessage, chunkSize);
 
-  // Split message into manageable chunks
-  for (let i = 0; i < trimmedMessage.length; i += chunkSize) {
-    messageChunks.push(trimmedMessage.slice(i, i + chunkSize));
-  }
-
-  // Send each chunk with part numbering
+  // Send each chunk sequentially
   for (let chunkIndex = 0; chunkIndex < messageChunks.length; chunkIndex++) {
     const partNumber = chunkIndex + 1;
     const totalParts = messageChunks.length;
-    const chunkWithHeader = `Part ${ partNumber }/${ totalParts }:\n\n${ messageChunks[ chunkIndex ] }`;
+    const header = `Part ${ partNumber }/${ totalParts }:`;
+    const chunkWithHeader = `${ header }\n\n${ messageChunks[ chunkIndex ] }`;
+
+    // Ensure chunk with header is within Telegram's limit
+    if (chunkWithHeader.length > TELEGRAM_MESSAGE_MAX_LENGTH) {
+      return {
+        success: false,
+        error: `Chunk ${ partNumber } exceeds Telegram's message length limit`,
+      };
+    }
 
     const sendResult = await sendTelegramMessage(chunkWithHeader, credentials);
 
@@ -107,7 +166,7 @@ export async function sendLongMessageToTelegram(
       };
     }
 
-    // Add delay between chunks to respect Telegram's rate limits
+    // Delay to respect Telegram's rate limit
     if (chunkIndex < messageChunks.length - 1) {
       await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_DELAY_MS));
     }
@@ -115,6 +174,10 @@ export async function sendLongMessageToTelegram(
 
   return {
     success: true,
-    sentParts: messageChunks.length
+    sentParts: messageChunks.length,
   };
 }
+
+// ------------------------------------------------------------>
+// -------------------------------------------------------------->
+// ---------------------------------------------------------------->
