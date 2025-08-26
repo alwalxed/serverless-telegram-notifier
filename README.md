@@ -2,7 +2,7 @@
 
 Minimal Hono-based Cloudflare Workers service for forwarding HTTP requests to Telegram. Provides two routes:
 
-- **GET `/`** - Sends request information to Telegram (useful for monitoring)
+- **GET `/`** - Sends request information to Telegram
 - **POST `/send`** - Sends custom notifications with authentication
 
 ## Features
@@ -11,7 +11,6 @@ Minimal Hono-based Cloudflare Workers service for forwarding HTTP requests to Te
 - Rate limiting compliance with 1-second delays between chunks
 - Request metadata logging (IP, headers, timestamp)
 - Authentication for custom notifications
-- Comprehensive error handling
 
 ## Quick Setup
 
@@ -60,7 +59,6 @@ pnpm run deploy
 Any GET request to the root endpoint will send request details to Telegram:
 
 ```bash
-# dev
 curl http://localhost:8787/
 ```
 
