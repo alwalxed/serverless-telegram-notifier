@@ -1,6 +1,6 @@
 # Serverless Telegram Notifier
 
-Minimal Cloudflare Workers service that forwards HTTP requests to Telegram. Provides two routes:
+Minimal Hono-based Cloudflare Workers service for forwarding HTTP requests to Telegram. Provides two routes:
 
 - **GET `/`** - Sends request information to Telegram (useful for monitoring)
 - **POST `/send`** - Sends custom notifications with authentication
