@@ -10,7 +10,8 @@ Minimal Hono-based Cloudflare Workers service for forwarding HTTP requests to Te
 - Automatic message chunking for long messages (4096+ characters)
 - Rate limiting compliance with 1-second delays between chunks
 - Request metadata logging (IP, headers, timestamp)
-- Authentication for custom notifications
+- Simple automated bot bypass (reduces false positive requests)
+- Simple Authentication for custom notifications
 
 ## Quick Setup
 
